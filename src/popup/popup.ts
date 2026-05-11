@@ -46,7 +46,7 @@ function render() {
 
   root.innerHTML = `
     <div class="brand">
-      <h1><span class="logo">K</span>Kamboom</h1>
+      <h1><span class="logo">K</span>Kaboom</h1>
       <span class="hint ${isRec ? 'timer' : ''}">${isRec ? '● ' + fmt(elapsed) : 'v0.1'}</span>
     </div>
 

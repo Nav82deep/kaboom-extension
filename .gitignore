@@ -1,6 +1,6 @@
 node_modules
 dist
-kamboom-extension.zip
+kaboom-extension.zip
 .DS_Store
 *.log
 .env*

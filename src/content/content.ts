@@ -1,6 +1,6 @@
 import type { Message } from '../lib/messages';
 
-const HOST_ID = '__kamboom_annotator_host__';
+const HOST_ID = '__kaboom_annotator_host__';
 
 interface Stroke {
   tool: 'pen' | 'highlight' | 'arrow';
@@ -20,12 +20,12 @@ interface State {
 
 declare global {
   interface Window {
-    __kamboomAnnotatorInit?: boolean;
+    __kaboomAnnotatorInit?: boolean;
   }
 }
 
-if (!window.__kamboomAnnotatorInit) {
-  window.__kamboomAnnotatorInit = true;
+if (!window.__kaboomAnnotatorInit) {
+  window.__kaboomAnnotatorInit = true;
   install();
 }
 

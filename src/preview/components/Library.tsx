@@ -28,7 +28,7 @@ export function Library({ recordings, onOpen, onDelete }: Props) {
             K
           </div>
           <div>
-            <div class="text-[15px] font-semibold leading-tight">Kamboom</div>
+            <div class="text-[15px] font-semibold leading-tight">Kaboom</div>
             <div class="text-[11px] text-[var(--ink-500)]">Library</div>
           </div>
         </div>

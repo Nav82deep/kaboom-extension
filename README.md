@@ -1,4 +1,4 @@
-# Kamboom
+# Kaboom
 
 A Chrome extension for fast, friction-free screen recording — with **in-browser trim**, a **live transcript**, and a **draw-on-screen** annotation layer that works mid-recording. Built as a take-home for Capital Compute Technologies.
 
@@ -19,15 +19,15 @@ Then in Chrome:
 2. Turn on **Developer mode** (top-right toggle)
 3. Click **Load unpacked** and pick the `dist/` folder
 
-Pin Kamboom to the toolbar so the popup is one click away.
+Pin Kaboom to the toolbar so the popup is one click away.
 
 ## Install (from the packaged zip)
 
 ```bash
-npm run package          # produces kamboom-extension.zip
+npm run package          # produces kaboom-extension.zip
 ```
 
-Unzip `kamboom-extension.zip` somewhere and **Load unpacked** that folder. (Chrome only loads zip files directly inside the Web Store; locally you load the unzipped folder.)
+Unzip `kaboom-extension.zip` somewhere and **Load unpacked** that folder. (Chrome only loads zip files directly inside the Web Store; locally you load the unzipped folder.)
 
 ---
 
@@ -72,18 +72,18 @@ npm run typecheck  # tsc --noEmit
 npm run build      # production build into dist/
 ```
 
-Vite watches the source and rebuilds `dist/` in place. After a change, click **Reload** on the Kamboom card in `chrome://extensions` to pick up service-worker / manifest edits; the popup and preview reload on their own.
+Vite watches the source and rebuilds `dist/` in place. After a change, click **Reload** on the Kaboom card in `chrome://extensions` to pick up service-worker / manifest edits; the popup and preview reload on their own.
 
 ---
 
 ## Permissions & privacy
 
-Kamboom asks for `offscreen`, `storage`, `tabs`, `scripting`, `activeTab`, and `downloads`. The host permission is `<all_urls>`, used only to inject the annotation overlay into the active tab on demand.
+Kaboom asks for `offscreen`, `storage`, `tabs`, `scripting`, `activeTab`, and `downloads`. The host permission is `<all_urls>`, used only to inject the annotation overlay into the active tab on demand.
 
 Everything stays on your machine. There is no upload endpoint, no analytics, no telemetry. The "Copy link" button generates a `chrome-extension://…` URL that only works inside the same browser profile that recorded the video.
 
 ---
 
-## Why "Kamboom"?
+## Why "Kaboom"?
 
 It rhymes with Loom and sounds like an explosion. The point is that recording shouldn't feel like a process — it should feel like clicking a button and being done.

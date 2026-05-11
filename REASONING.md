@@ -1,4 +1,4 @@
-# Kamboom — Document of Reasoning
+# Kaboom — Document of Reasoning
 
 **Take-home assessment · Capital Compute Technologies**
 **Author:** Navdeep
@@ -140,4 +140,4 @@ The pattern: keep stacking the post-recording workflow.
 
 ## 8. The one thing I want the reviewer to remember
 
-The accepted submission you gave me as reference and Kamboom solve different halves of the Loom problem. Both halves are real. Mine is the one most people lose more time to — not getting *into* the recording but getting *out* of a take they're willing to send.
+The accepted submission you gave me as reference and Kaboom solve different halves of the Loom problem. Both halves are real. Mine is the one most people lose more time to — not getting *into* the recording but getting *out* of a take they're willing to send.

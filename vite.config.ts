@@ -4,12 +4,12 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 
 const manifest = {
   manifest_version: 3,
-  name: 'Kamboom — Screen recorder',
+  name: 'Kaboom — Screen recorder',
   version: '0.1.0',
   description: 'Record, trim, transcribe and share screen captures without leaving the browser.',
   action: {
     default_popup: 'src/popup/popup.html',
-    default_title: 'Kamboom',
+    default_title: 'Kaboom',
   },
   background: {
     service_worker: 'src/background/service-worker.js',
@@ -43,7 +43,7 @@ const manifest = {
 
 function manifestPlugin() {
   return {
-    name: 'kamboom-manifest',
+    name: 'kaboom-manifest',
     closeBundle() {
       const outDir = resolve(__dirname, 'dist');
       if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });

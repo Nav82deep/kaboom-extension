@@ -78,7 +78,7 @@ function Empty() {
         <div class="text-5xl mb-3">🎬</div>
         <h1 class="text-xl font-semibold mb-2">No recording yet</h1>
         <p class="text-sm text-[var(--ink-500)] mb-5">
-          Open the Kamboom popup and hit <strong>Start recording</strong>, or press <kbd class="px-1.5 py-0.5 bg-[var(--ink-100)] rounded text-xs">⌘⇧L</kbd>.
+          Open the Kaboom popup and hit <strong>Start recording</strong>, or press <kbd class="px-1.5 py-0.5 bg-[var(--ink-100)] rounded text-xs">⌘⇧L</kbd>.
         </p>
         <button class="btn btn-secondary" onClick={() => (window.location.href = '?library=1')}>
           Open library
@@ -252,7 +252,7 @@ function Header({ onLibrary }: { onLibrary: () => void }) {
           K
         </div>
         <div>
-          <div class="text-[15px] font-semibold leading-tight">Kamboom</div>
+          <div class="text-[15px] font-semibold leading-tight">Kaboom</div>
           <div class="text-[11px] text-[var(--ink-500)]">Local-first screen recorder</div>
         </div>
       </div>

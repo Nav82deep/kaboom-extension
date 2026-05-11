@@ -14,18 +14,18 @@ export interface Recording {
   trimmedFrom?: string;
 }
 
-class ReelDB extends Dexie {
+class KaboomDB extends Dexie {
   recordings!: Table<Recording, string>;
 
   constructor() {
-    super('kamboom');
+    super('kaboom');
     this.version(1).stores({
       recordings: 'id, createdAt, name',
     });
   }
 }
 
-export const db = new ReelDB();
+export const db = new KaboomDB();
 
 export function newId(): string {
   return crypto.randomUUID().slice(0, 8);
