@@ -162,6 +162,4 @@ async function refresh() {
 }
 
 refresh();
-setInterval(() => {
-  if (state.recording) render();
-}, 1000);
+setInterval(refresh, 1000);

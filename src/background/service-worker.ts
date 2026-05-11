@@ -1,6 +1,7 @@
 import type { Message, RecordingConfig } from '../lib/messages';
 
 const OFFSCREEN_PATH = 'src/offscreen/offscreen.html';
+const SESSION_KEY = 'kaboom_state_v1';
 
 interface State {
   recording: boolean;
@@ -17,6 +18,43 @@ const state: State = {
   config: null,
   targetTabId: null,
 };
+
+async function persistState(): Promise<void> {
+  try {
+    await chrome.storage.session.set({
+      [SESSION_KEY]: {
+        recording: state.recording,
+        annotation: state.annotation,
+        startedAt: state.startedAt,
+        config: state.config,
+        targetTabId: state.targetTabId,
+      },
+    });
+  } catch {}
+}
+
+async function rehydrateState(): Promise<void> {
+  try {
+    const obj = await chrome.storage.session.get(SESSION_KEY);
+    const s = obj?.[SESSION_KEY];
+    if (!s) return;
+    state.recording = !!s.recording;
+    state.annotation = !!s.annotation;
+    state.startedAt = s.startedAt ?? null;
+    state.config = s.config ?? null;
+    state.targetTabId = s.targetTabId ?? null;
+    if (state.recording && !(await hasOffscreen())) {
+      state.recording = false;
+      state.startedAt = null;
+      await persistState();
+      updateBadge('');
+    } else if (state.recording) {
+      updateBadge('REC');
+    }
+  } catch {}
+}
+
+void rehydrateState();
 
 async function hasOffscreen(): Promise<boolean> {
   const contexts = await chrome.runtime.getContexts({
@@ -46,6 +84,7 @@ async function startRecording(config: RecordingConfig): Promise<void> {
   state.targetTabId = activeTab?.id ?? null;
   state.config = config;
 
+  await persistState();
   await ensureOffscreen();
   updateBadge('REC');
 }
@@ -76,6 +115,7 @@ async function toggleAnnotation(): Promise<void> {
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!activeTab?.id) return;
   state.annotation = !state.annotation;
+  await persistState();
   await ensureContentScript(activeTab.id);
   chrome.tabs.sendMessage(activeTab.id, {
     type: 'CONTENT_TOGGLE_ANNOTATION',
@@ -124,6 +164,7 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
         sendResponse({ ok: true });
         return;
       case 'POPUP_STATUS_REQUEST':
+        await rehydrateState();
         sendResponse({
           type: 'STATUS',
           recording: state.recording,
@@ -144,12 +185,14 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
       case 'OFFSCREEN_STARTED':
         state.recording = true;
         state.startedAt = Date.now();
+        await persistState();
         broadcastRecordingState();
         sendResponse({ ok: true });
         return;
       case 'OFFSCREEN_STOPPED':
         state.recording = false;
         state.startedAt = null;
+        await persistState();
         updateBadge('');
         broadcastRecordingState();
         await closeOffscreen();
@@ -161,6 +204,7 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
       case 'OFFSCREEN_ERROR':
         state.recording = false;
         state.startedAt = null;
+        await persistState();
         updateBadge('');
         broadcastRecordingState();
         await closeOffscreen();
@@ -172,6 +216,7 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
         return;
       case 'CONTENT_ANNOTATION_CHANGED':
         state.annotation = msg.active;
+        await persistState();
         sendResponse({ ok: true });
         return;
       default:
