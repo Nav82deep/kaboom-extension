@@ -12,7 +12,8 @@ interface Session {
   width: number;
   height: number;
   mimeType: string;
-  rafId: number | null;
+  renderTimerId: number | null;
+  audioContext: AudioContext | null;
   recognizer: SpeechRecognition | null;
   transcript: TranscriptCue[];
   partialStart: number | null;
@@ -24,6 +25,7 @@ function pickMimeType(): string {
   const candidates = [
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=h264,opus',
     'video/webm',
   ];
   for (const t of candidates) {
@@ -71,13 +73,18 @@ async function getMic(): Promise<MediaStream | null> {
   }
 }
 
-function drawComposite(s: Session, canvas: HTMLCanvasElement, screenEl: HTMLVideoElement, camEl: HTMLVideoElement | null) {
+function startCanvasComposite(
+  canvas: HTMLCanvasElement,
+  screenEl: HTMLVideoElement,
+  camEl: HTMLVideoElement | null,
+): number {
   const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  if (!ctx) return 0;
   const render = () => {
     if (!session) return;
+    if (screenEl.readyState < 2) return;
     ctx.drawImage(screenEl, 0, 0, canvas.width, canvas.height);
-    if (camEl && camEl.readyState >= 2) {
+    if (camEl && camEl.readyState >= 2 && camEl.videoWidth > 0) {
       const camSize = Math.round(canvas.height * 0.18);
       const pad = Math.round(canvas.height * 0.025);
       const cx = canvas.width - camSize - pad;
@@ -88,32 +95,21 @@ function drawComposite(s: Session, canvas: HTMLCanvasElement, screenEl: HTMLVide
       ctx.arc(cx + r, cy + r, r, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      const camAspect = camEl.videoWidth / camEl.videoHeight;
-      let sw = camEl.videoWidth;
-      let sh = camEl.videoHeight;
-      if (camAspect > 1) {
-        sw = camEl.videoHeight;
-      } else {
-        sh = camEl.videoWidth;
-      }
-      const sx = (camEl.videoWidth - sw) / 2;
-      const sy = (camEl.videoHeight - sh) / 2;
-      ctx.drawImage(camEl, sx, sy, sw, sh, cx, cy, camSize, camSize);
+      const camW = camEl.videoWidth;
+      const camH = camEl.videoHeight;
+      const side = Math.min(camW, camH);
+      const sx = (camW - side) / 2;
+      const sy = (camH - side) / 2;
+      ctx.drawImage(camEl, sx, sy, side, side, cx, cy, camSize, camSize);
       ctx.restore();
       ctx.beginPath();
       ctx.arc(cx + r, cy + r, r + 1, 0, Math.PI * 2);
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(255,255,255,0.95)';
       ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(cx + r, cy + r, r + 3, 0, Math.PI * 2);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = 'rgba(15,16,20,0.15)';
-      ctx.stroke();
     }
-    s.rafId = requestAnimationFrame(render);
   };
-  s.rafId = requestAnimationFrame(render);
+  return window.setInterval(render, 33);
 }
 
 function startRecognition(s: Session): void {
@@ -176,20 +172,25 @@ async function startSession(config: RecordingConfig): Promise<void> {
   const width = screenSettings.width ?? 1920;
   const height = screenSettings.height ?? 1080;
 
-  const screenEl = document.getElementById('screenVideo') as HTMLVideoElement;
-  const camEl = document.getElementById('camVideo') as HTMLVideoElement | null;
-  const canvas = document.getElementById('composite') as HTMLCanvasElement;
-  canvas.width = width;
-  canvas.height = height;
+  let videoTracks: MediaStreamTrack[];
+  let renderTimerId: number | null = null;
 
-  screenEl.srcObject = screen;
-  await screenEl.play();
-  if (cam && camEl) {
+  if (cam) {
+    const canvas = document.getElementById('composite') as HTMLCanvasElement;
+    canvas.width = width;
+    canvas.height = height;
+    const screenEl = document.getElementById('screenVideo') as HTMLVideoElement;
+    const camEl = document.getElementById('camVideo') as HTMLVideoElement;
+    screenEl.srcObject = screen;
     camEl.srcObject = cam;
-    await camEl.play();
+    await Promise.all([screenEl.play(), camEl.play()]);
+    renderTimerId = startCanvasComposite(canvas, screenEl, camEl);
+    const canvasStream = canvas.captureStream(30);
+    videoTracks = canvasStream.getVideoTracks();
+  } else {
+    videoTracks = screen.getVideoTracks();
   }
 
-  const canvasStream = canvas.captureStream(30);
   const audioContext = new AudioContext();
   const dest = audioContext.createMediaStreamDestination();
   let anyAudio = false;
@@ -200,17 +201,21 @@ async function startSession(config: RecordingConfig): Promise<void> {
       anyAudio = true;
     }
   }
+
   const combined = new MediaStream();
-  for (const t of canvasStream.getVideoTracks()) combined.addTrack(t);
+  for (const t of videoTracks) combined.addTrack(t);
   if (anyAudio) {
     for (const t of dest.stream.getAudioTracks()) combined.addTrack(t);
   }
 
   const mimeType = pickMimeType();
-  const recorder = new MediaRecorder(combined, mimeType ? { mimeType, videoBitsPerSecond: 4_500_000 } : undefined);
+  const recorder = new MediaRecorder(
+    combined,
+    mimeType ? { mimeType, videoBitsPerSecond: 4_500_000 } : undefined,
+  );
   const chunks: BlobPart[] = [];
   recorder.ondataavailable = (e) => {
-    if (e.data && e.data.size) chunks.push(e.data);
+    if (e.data && e.data.size > 0) chunks.push(e.data);
   };
 
   const s: Session = {
@@ -224,23 +229,29 @@ async function startSession(config: RecordingConfig): Promise<void> {
     width,
     height,
     mimeType: mimeType || 'video/webm',
-    rafId: null,
+    renderTimerId,
+    audioContext,
     recognizer: null,
     transcript: [],
     partialStart: null,
   };
   session = s;
 
-  drawComposite(s, canvas, screenEl, camEl);
-
   screenTrack.addEventListener('ended', () => {
     void stopSession();
   });
 
   recorder.onstop = async () => {
-    const blob = new Blob(s.chunks, { type: s.mimeType });
-    const durationMs = Date.now() - s.startedAt;
     try {
+      const blob = new Blob(s.chunks, { type: s.mimeType });
+      if (blob.size === 0) {
+        chrome.runtime.sendMessage({
+          type: 'OFFSCREEN_ERROR',
+          message: 'Recording produced no data. Try again, and if the issue persists check that the chosen source is actually visible during the recording.',
+        } satisfies Message);
+        return;
+      }
+      const durationMs = Date.now() - s.startedAt;
       const rec = await saveRecording({
         blob,
         mimeType: s.mimeType,
@@ -265,9 +276,12 @@ async function startSession(config: RecordingConfig): Promise<void> {
 function teardown() {
   if (!session) return;
   const s = session;
-  if (s.rafId !== null) cancelAnimationFrame(s.rafId);
+  if (s.renderTimerId !== null) clearInterval(s.renderTimerId);
   for (const stream of [s.screen, s.cam, s.mic]) {
     if (stream) stream.getTracks().forEach((t) => t.stop());
+  }
+  if (s.audioContext) {
+    s.audioContext.close().catch(() => {});
   }
   if (s.recognizer) {
     try {
@@ -292,7 +306,10 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
     startSession(msg.config)
       .then(() => sendResponse({ ok: true }))
       .catch((e) => {
-        chrome.runtime.sendMessage({ type: 'OFFSCREEN_ERROR', message: (e as Error).message } satisfies Message);
+        chrome.runtime.sendMessage({
+          type: 'OFFSCREEN_ERROR',
+          message: (e as Error).message,
+        } satisfies Message);
         sendResponse({ ok: false, error: String(e) });
       });
     return true;
