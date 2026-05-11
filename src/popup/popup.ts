@@ -87,7 +87,10 @@ function render() {
     </div>
 
     <button class="primary ${isRec ? 'recording' : ''}" id="go">
-      ${isRec ? '<span class="dot"></span> Stop recording' : 'Start recording'}
+      <span class="primary-label">
+        ${isRec ? '<span class="dot"></span> Stop recording' : 'Start recording'}
+      </span>
+      <span class="kbd kbd-dark">⌘⇧L</span>
     </button>
 
     <div class="footer">
@@ -98,10 +101,8 @@ function render() {
       <button class="ghost" id="draw">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
         ${state.annotation ? 'Stop drawing' : 'Draw on screen'}
+        <span class="kbd">⌘⇧K</span>
       </button>
-      <span class="ghost" style="cursor:default;font-size:10px">
-        <span class="kbd">⌘⇧L</span> · <span class="kbd">⌘⇧K</span>
-      </span>
     </div>
   `;
 

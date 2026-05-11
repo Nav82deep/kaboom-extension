@@ -217,9 +217,17 @@ input[type='checkbox']:checked + .switch::after {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   transition: transform 80ms ease, background 120ms ease;
+}
+
+.primary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
 }
 
 .primary:hover {
@@ -259,6 +267,7 @@ input[type='checkbox']:checked + .switch::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
   margin-top: 10px;
   padding: 0 2px;
 }
@@ -291,6 +300,21 @@ input[type='checkbox']:checked + .switch::after {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   color: var(--ink-700);
   border-bottom: 1px solid var(--ink-300);
+  margin-left: 4px;
+}
+
+.kbd-dark {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.primary.recording .kbd-dark {
+  background: rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.95);
+  border-bottom-color: rgba(0, 0, 0, 0.1);
 }
 
 .timer {
