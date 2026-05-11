@@ -63,14 +63,15 @@ async function getCam(): Promise<{ stream: MediaStream | null; error: string | n
   }
 }
 
-async function getMic(): Promise<MediaStream | null> {
+async function getMic(): Promise<{ stream: MediaStream | null; error: string | null }> {
   try {
-    return await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false,
     });
-  } catch {
-    return null;
+    return { stream, error: null };
+  } catch (e) {
+    return { stream: null, error: (e as Error).message || 'Microphone permission denied' };
   }
 }
 
@@ -178,7 +179,20 @@ async function startSession(config: RecordingConfig): Promise<void> {
       return;
     }
   }
-  const mic = config.withMic ? await getMic() : null;
+  let mic: MediaStream | null = null;
+  if (config.withMic) {
+    const result = await getMic();
+    mic = result.stream;
+    if (!mic && result.error) {
+      chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_ERROR',
+        message: `Microphone access denied. Grant microphone permission to the extension (click the camera/mic icon in Chrome's address bar) and try again. (${result.error})`,
+      } satisfies Message);
+      for (const t of screen.getTracks()) t.stop();
+      if (cam) for (const t of cam.getTracks()) t.stop();
+      return;
+    }
+  }
 
   const screenTrack = screen.getVideoTracks()[0];
   const screenSettings = screenTrack.getSettings();
@@ -204,20 +218,26 @@ async function startSession(config: RecordingConfig): Promise<void> {
     videoTracks = screen.getVideoTracks();
   }
 
-  const audioContext = new AudioContext();
-  const dest = audioContext.createMediaStreamDestination();
-  let anyAudio = false;
-  for (const stream of [screen, mic]) {
-    if (stream && stream.getAudioTracks().length) {
-      const node = audioContext.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));
-      node.connect(dest);
-      anyAudio = true;
-    }
+  const audioSources: MediaStream[] = [];
+  if (mic && mic.getAudioTracks().length) audioSources.push(mic);
+  if (config.withSystemAudio && screen.getAudioTracks().length) {
+    audioSources.push(new MediaStream(screen.getAudioTracks()));
   }
 
   const combined = new MediaStream();
   for (const t of videoTracks) combined.addTrack(t);
-  if (anyAudio) {
+
+  let audioContext: AudioContext | null = null;
+  if (audioSources.length === 1) {
+    for (const t of audioSources[0].getAudioTracks()) combined.addTrack(t);
+  } else if (audioSources.length > 1) {
+    audioContext = new AudioContext();
+    if (audioContext.state === 'suspended') await audioContext.resume();
+    const dest = audioContext.createMediaStreamDestination();
+    for (const src of audioSources) {
+      const node = audioContext.createMediaStreamSource(src);
+      node.connect(dest);
+    }
     for (const t of dest.stream.getAudioTracks()) combined.addTrack(t);
   }
 
