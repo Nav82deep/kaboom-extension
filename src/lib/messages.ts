@@ -27,7 +27,9 @@ export type Message =
   | { type: 'OFFSCREEN_TRANSCRIPT'; cue: TranscriptCue }
   | { type: 'STATUS'; recording: boolean; annotation: boolean; startedAt: number | null }
   | { type: 'CONTENT_TOGGLE_ANNOTATION'; active: boolean }
-  | { type: 'CONTENT_ANNOTATION_CHANGED'; active: boolean };
+  | { type: 'CONTENT_ANNOTATION_CHANGED'; active: boolean }
+  | { type: 'CONTENT_RECORDING_STATE'; recording: boolean; startedAt: number | null }
+  | { type: 'CONTENT_STOP_RECORDING' };
 
 export type MessageResponse = void | { ok: true } | { ok: false; error: string };
 

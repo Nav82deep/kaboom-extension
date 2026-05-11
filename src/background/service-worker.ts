@@ -60,21 +60,40 @@ function updateBadge(text: string): void {
   chrome.action.setBadgeBackgroundColor({ color: text ? '#ff4e2c' : '#00000000' });
 }
 
+async function ensureContentScript(tabId: number): Promise<boolean> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['src/content/content.js'],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function toggleAnnotation(): Promise<void> {
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!activeTab?.id) return;
   state.annotation = !state.annotation;
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: activeTab.id },
-      files: ['src/content/content.js'],
-    });
-  } catch {
-  }
+  await ensureContentScript(activeTab.id);
   chrome.tabs.sendMessage(activeTab.id, {
     type: 'CONTENT_TOGGLE_ANNOTATION',
     active: state.annotation,
   } satisfies Message);
+}
+
+async function broadcastRecordingState(): Promise<void> {
+  const tabs = await chrome.tabs.query({ active: true });
+  for (const tab of tabs) {
+    if (!tab.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) continue;
+    await ensureContentScript(tab.id);
+    chrome.tabs.sendMessage(tab.id, {
+      type: 'CONTENT_RECORDING_STATE',
+      recording: state.recording,
+      startedAt: state.startedAt,
+    } satisfies Message).catch(() => {});
+  }
 }
 
 chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
@@ -109,12 +128,14 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
       case 'OFFSCREEN_STARTED':
         state.recording = true;
         state.startedAt = Date.now();
+        broadcastRecordingState();
         sendResponse({ ok: true });
         return;
       case 'OFFSCREEN_STOPPED':
         state.recording = false;
         state.startedAt = null;
         updateBadge('');
+        broadcastRecordingState();
         await closeOffscreen();
         chrome.tabs.create({
           url: chrome.runtime.getURL(`src/preview/preview.html?id=${msg.recordingId}`),
@@ -125,7 +146,12 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
         state.recording = false;
         state.startedAt = null;
         updateBadge('');
+        broadcastRecordingState();
         await closeOffscreen();
+        sendResponse({ ok: true });
+        return;
+      case 'CONTENT_STOP_RECORDING':
+        await stopRecording();
         sendResponse({ ok: true });
         return;
       case 'CONTENT_ANNOTATION_CHANGED':
@@ -158,4 +184,16 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 chrome.runtime.onInstalled.addListener(() => {
   updateBadge('');
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  if (!state.recording) return;
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
+  await ensureContentScript(tabId);
+  chrome.tabs.sendMessage(tabId, {
+    type: 'CONTENT_RECORDING_STATE',
+    recording: state.recording,
+    startedAt: state.startedAt,
+  } satisfies Message).catch(() => {});
 });
