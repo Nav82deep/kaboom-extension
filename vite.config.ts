@@ -15,7 +15,7 @@ const manifest = {
     service_worker: 'src/background/service-worker.js',
     type: 'module' as const,
   },
-  permissions: ['offscreen', 'storage', 'tabs', 'scripting', 'activeTab', 'downloads'],
+  permissions: ['offscreen', 'storage', 'tabs', 'scripting', 'activeTab', 'downloads', 'notifications'],
   host_permissions: ['<all_urls>'],
   commands: {
     'toggle-recording': {

@@ -291,6 +291,27 @@ input[type='checkbox']:checked + .switch::after {
   color: var(--ink-700);
 }
 
+.ghost.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ghost.disabled:hover {
+  background: transparent;
+  color: var(--ink-500);
+}
+
+.notice {
+  margin: 8px 2px 0;
+  padding: 8px 10px;
+  background: #fff7f4;
+  border: 1px solid #ffd9cc;
+  color: #7a2f15;
+  border-radius: 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
 .kbd {
   display: inline-block;
   padding: 1px 5px;

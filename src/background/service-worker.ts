@@ -99,6 +99,18 @@ function updateBadge(text: string): void {
   chrome.action.setBadgeBackgroundColor({ color: text ? '#ff4e2c' : '#00000000' });
 }
 
+function notify(title: string, message: string): void {
+  try {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
+      title,
+      message,
+      priority: 1,
+    });
+  } catch {}
+}
+
 async function ensureContentScript(tabId: number): Promise<boolean> {
   try {
     await chrome.scripting.executeScript({
@@ -208,6 +220,7 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
         updateBadge('');
         broadcastRecordingState();
         await closeOffscreen();
+        notify('Kaboom — recording failed', msg.message);
         sendResponse({ ok: true });
         return;
       case 'CONTENT_STOP_RECORDING':

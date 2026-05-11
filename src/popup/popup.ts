@@ -9,6 +9,8 @@ interface State {
   recording: boolean;
   annotation: boolean;
   startedAt: number | null;
+  drawAvailable: boolean;
+  activeTabUrl: string;
 }
 
 const state: State = {
@@ -19,7 +21,18 @@ const state: State = {
   recording: false,
   annotation: false,
   startedAt: null,
+  drawAvailable: true,
+  activeTabUrl: '',
 };
+
+function isInjectableUrl(url: string): boolean {
+  if (!url) return false;
+  return !url.startsWith('chrome://')
+    && !url.startsWith('chrome-extension://')
+    && !url.startsWith('edge://')
+    && !url.startsWith('about:')
+    && !url.startsWith('https://chrome.google.com/webstore');
+}
 
 const icons = {
   screen: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 20h8M12 17v3"/></svg>',
@@ -98,12 +111,13 @@ function render() {
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
         Library
       </button>
-      <button class="ghost" id="draw">
+      <button class="ghost ${state.drawAvailable ? '' : 'disabled'}" id="draw" ${state.drawAvailable ? '' : 'aria-disabled="true"'} title="${state.drawAvailable ? '' : 'Open a normal webpage to use the annotation overlay'}">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
         ${state.annotation ? 'Stop drawing' : 'Draw on screen'}
         <span class="kbd">⌘⇧K</span>
       </button>
     </div>
+    ${!state.drawAvailable ? '<p class="notice">Drawing works on regular websites — open one in this tab to use the annotation overlay.</p>' : ''}
   `;
 
   root.querySelectorAll<HTMLElement>('.source-btn').forEach((btn) => {
@@ -126,6 +140,7 @@ function render() {
   document.getElementById('go')?.addEventListener('click', onPrimary);
   document.getElementById('lib')?.addEventListener('click', openLibrary);
   document.getElementById('draw')?.addEventListener('click', async () => {
+    if (!state.drawAvailable) return;
     await send({ type: 'POPUP_TOGGLE_ANNOTATION' } satisfies Message);
     window.close();
   });
@@ -158,6 +173,13 @@ async function refresh() {
     state.recording = status.recording;
     state.annotation = status.annotation;
     state.startedAt = status.startedAt;
+  }
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    state.activeTabUrl = tab?.url ?? '';
+    state.drawAvailable = isInjectableUrl(state.activeTabUrl);
+  } catch {
+    state.drawAvailable = false;
   }
   render();
 }

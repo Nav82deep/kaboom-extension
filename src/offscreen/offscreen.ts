@@ -51,14 +51,15 @@ async function getScreen(config: RecordingConfig): Promise<MediaStream> {
   return navigator.mediaDevices.getDisplayMedia(constraints);
 }
 
-async function getCam(): Promise<MediaStream | null> {
+async function getCam(): Promise<{ stream: MediaStream | null; error: string | null }> {
   try {
-    return await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 320, height: 240, facingMode: 'user' },
       audio: false,
     });
-  } catch {
-    return null;
+    return { stream, error: null };
+  } catch (e) {
+    return { stream: null, error: (e as Error).message || 'Camera permission denied' };
   }
 }
 
@@ -164,7 +165,19 @@ async function startSession(config: RecordingConfig): Promise<void> {
   if (session) return;
 
   const screen = await getScreen(config);
-  const cam = config.withCam ? await getCam() : null;
+  let cam: MediaStream | null = null;
+  if (config.withCam) {
+    const result = await getCam();
+    cam = result.stream;
+    if (!cam && result.error) {
+      chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_ERROR',
+        message: `Camera access denied. Recording the screen without the webcam bubble. Grant camera permission to the extension and try again. (${result.error})`,
+      } satisfies Message);
+      for (const t of screen.getTracks()) t.stop();
+      return;
+    }
+  }
   const mic = config.withMic ? await getMic() : null;
 
   const screenTrack = screen.getVideoTracks()[0];
