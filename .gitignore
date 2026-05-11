@@ -1,0 +1,6 @@
+node_modules
+dist
+kamboom-extension.zip
+.DS_Store
+*.log
+.env*

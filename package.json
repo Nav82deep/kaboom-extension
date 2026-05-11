@@ -1,0 +1,27 @@
+{
+  "name": "kamboom",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "tsc --noEmit && vite build",
+    "package": "npm run build && cd dist && zip -r ../kamboom-extension.zip . -x '*.DS_Store' && cd ..",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.0.1",
+    "dexie": "^4.0.10",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "@types/dom-speech-recognition": "^0.0.6",
+    "@types/node": "^25.6.2",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}
