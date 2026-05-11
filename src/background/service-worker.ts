@@ -83,17 +83,33 @@ async function toggleAnnotation(): Promise<void> {
   } satisfies Message);
 }
 
+function isInjectable(url: string | undefined): boolean {
+  if (!url) return false;
+  if (url.startsWith('chrome://')) return false;
+  if (url.startsWith('chrome-extension://')) return false;
+  if (url.startsWith('edge://') || url.startsWith('about:')) return false;
+  if (url.startsWith('https://chrome.google.com/webstore')) return false;
+  return true;
+}
+
+async function pushStateToTab(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  if (!tab || !isInjectable(tab.url)) return;
+  const ok = await ensureContentScript(tabId);
+  if (!ok) return;
+  chrome.tabs.sendMessage(tabId, {
+    type: 'CONTENT_RECORDING_STATE',
+    recording: state.recording,
+    startedAt: state.startedAt,
+  } satisfies Message).catch(() => {});
+}
+
 async function broadcastRecordingState(): Promise<void> {
-  const tabs = await chrome.tabs.query({ active: true });
-  for (const tab of tabs) {
-    if (!tab.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) continue;
-    await ensureContentScript(tab.id);
-    chrome.tabs.sendMessage(tab.id, {
-      type: 'CONTENT_RECORDING_STATE',
-      recording: state.recording,
-      startedAt: state.startedAt,
-    } satisfies Message).catch(() => {});
-  }
+  const ids = new Set<number>();
+  if (state.targetTabId) ids.add(state.targetTabId);
+  const active = await chrome.tabs.query({ active: true });
+  for (const t of active) if (t.id) ids.add(t.id);
+  await Promise.all([...ids].map(pushStateToTab));
 }
 
 chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
@@ -186,14 +202,13 @@ chrome.runtime.onInstalled.addListener(() => {
   updateBadge('');
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+chrome.tabs.onActivated.addListener(({ tabId }) => {
   if (!state.recording) return;
-  const tab = await chrome.tabs.get(tabId).catch(() => null);
-  if (!tab?.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
-  await ensureContentScript(tabId);
-  chrome.tabs.sendMessage(tabId, {
-    type: 'CONTENT_RECORDING_STATE',
-    recording: state.recording,
-    startedAt: state.startedAt,
-  } satisfies Message).catch(() => {});
+  pushStateToTab(tabId);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (!state.recording) return;
+  if (info.status !== 'complete') return;
+  pushStateToTab(tabId);
 });

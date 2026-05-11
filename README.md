@@ -10,7 +10,7 @@ A Chrome extension for fast, friction-free screen recording — with **in-browse
 
 ```bash
 npm install
-  npm run build
+
 ```
 
 Then in Chrome:
