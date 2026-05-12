@@ -223,6 +223,10 @@ chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
         notify('Kaboom — recording failed', msg.message);
         sendResponse({ ok: true });
         return;
+      case 'OFFSCREEN_WARNING':
+        notify('Kaboom', msg.message);
+        sendResponse({ ok: true });
+        return;
       case 'CONTENT_STOP_RECORDING':
         await stopRecording();
         sendResponse({ ok: true });

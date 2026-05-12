@@ -24,6 +24,7 @@ export type Message =
   | { type: 'OFFSCREEN_STARTED' }
   | { type: 'OFFSCREEN_STOPPED'; recordingId: string }
   | { type: 'OFFSCREEN_ERROR'; message: string }
+  | { type: 'OFFSCREEN_WARNING'; message: string }
   | { type: 'OFFSCREEN_TRANSCRIPT'; cue: TranscriptCue }
   | { type: 'STATUS'; recording: boolean; annotation: boolean; startedAt: number | null }
   | { type: 'CONTENT_TOGGLE_ANNOTATION'; active: boolean }

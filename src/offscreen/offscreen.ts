@@ -166,32 +166,28 @@ async function startSession(config: RecordingConfig): Promise<void> {
   if (session) return;
 
   const screen = await getScreen(config);
+
+  const warnings: string[] = [];
+
   let cam: MediaStream | null = null;
   if (config.withCam) {
     const result = await getCam();
     cam = result.stream;
-    if (!cam && result.error) {
-      chrome.runtime.sendMessage({
-        type: 'OFFSCREEN_ERROR',
-        message: `Camera access denied. Recording the screen without the webcam bubble. Grant camera permission to the extension and try again. (${result.error})`,
-      } satisfies Message);
-      for (const t of screen.getTracks()) t.stop();
-      return;
-    }
+    if (!cam) warnings.push('Webcam bubble disabled — camera permission was not granted.');
   }
+
   let mic: MediaStream | null = null;
   if (config.withMic) {
     const result = await getMic();
     mic = result.stream;
-    if (!mic && result.error) {
-      chrome.runtime.sendMessage({
-        type: 'OFFSCREEN_ERROR',
-        message: `Microphone access denied. Grant microphone permission to the extension (click the camera/mic icon in Chrome's address bar) and try again. (${result.error})`,
-      } satisfies Message);
-      for (const t of screen.getTracks()) t.stop();
-      if (cam) for (const t of cam.getTracks()) t.stop();
-      return;
-    }
+    if (!mic) warnings.push('Microphone audio disabled — mic permission was not granted.');
+  }
+
+  if (warnings.length) {
+    chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_WARNING',
+      message: warnings.join(' '),
+    } satisfies Message);
   }
 
   const screenTrack = screen.getVideoTracks()[0];
