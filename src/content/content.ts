@@ -1,7 +1,5 @@
 import type { Message } from '../lib/messages';
 
-const HOST_ID = '__kaboom_overlay_host__';
-
 interface Stroke {
   tool: 'pen' | 'highlight' | 'arrow';
   color: string;
@@ -26,12 +24,191 @@ declare global {
   }
 }
 
-if (!window.__kaboomOverlayInit) {
+(() => {
+  if (window.__kaboomOverlayInit) return;
   window.__kaboomOverlayInit = true;
-  install();
-}
 
-function install() {
+  const HOST_ID = '__kaboom_overlay_host__';
+
+  const INDICATOR_HTML = `
+  <span class="rec-dot"></span>
+  <span class="rec-label">Recording</span>
+  <span class="rec-timer">00:00</span>
+  <button class="rec-stop" title="Stop recording (⌘⇧L)">
+    <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+    Stop
+  </button>
+`;
+
+  const STYLES = `
+  :host { all: initial; }
+
+  .annotation-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: auto;
+    cursor: crosshair;
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+  }
+
+  .annotation-toolbar {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(14, 15, 19, 0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: white;
+    border-radius: 14px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    pointer-events: auto;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    user-select: none;
+  }
+  .tb-btn {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 9px;
+    cursor: pointer;
+    color: rgba(255,255,255,0.7);
+    transition: all 120ms ease;
+    background: transparent;
+    border: none;
+  }
+  .tb-btn:hover { color: white; background: rgba(255,255,255,0.08); }
+  .tb-btn.active { color: white; background: rgba(255, 78, 44, 0.85); }
+  .tb-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .divider { width: 1px; height: 22px; background: rgba(255,255,255,0.12); margin: 0 4px; display: inline-block; }
+  .swatch {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    margin: 6px 3px;
+    cursor: pointer;
+    transition: transform 120ms ease;
+    border: 2px solid transparent;
+    padding: 0;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: white; transform: scale(1.1); }
+  .badge {
+    padding: 0 10px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: rgba(255,255,255,0.85);
+    display: inline-flex;
+    align-items: center;
+  }
+  .badge .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #ff4e2c;
+    margin-right: 6px;
+    animation: kaboom-pulse 1.5s ease-in-out infinite;
+  }
+  .tb-done {
+    border: none;
+    background: white;
+    color: #0e0f13;
+    font: inherit;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    margin: 0 4px 0 0;
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+  .tb-done:hover { opacity: 0.85; }
+
+  .rec-indicator {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 9px 9px 16px;
+    background: rgba(14, 15, 19, 0.94);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    color: white;
+    border-radius: 999px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    user-select: none;
+    animation: kaboom-fade-in 200ms ease;
+  }
+  .rec-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff4e2c;
+    box-shadow: 0 0 0 0 rgba(255, 78, 44, 0.6);
+    animation: kaboom-rec-pulse 1.4s ease-in-out infinite;
+  }
+  .rec-label {
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: -0.005em;
+  }
+  .rec-timer {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+    font-variant-numeric: tabular-nums;
+    padding-right: 6px;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    margin-right: 0;
+  }
+  .rec-stop {
+    border: none;
+    background: rgba(255, 78, 44, 0.95);
+    color: white;
+    font: inherit;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 120ms ease;
+  }
+  .rec-stop:hover { background: #c93d20; }
+
+  @keyframes kaboom-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes kaboom-rec-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 78, 44, 0.6); }
+    50% { box-shadow: 0 0 0 6px rgba(255, 78, 44, 0); }
+  }
+  @keyframes kaboom-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+`;
+
+  install();
+
+  function install() {
   const state: State = {
     annotating: false,
     recording: false,
@@ -308,180 +485,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.restore();
 }
 
-const INDICATOR_HTML = `
-  <span class="rec-dot"></span>
-  <span class="rec-label">Recording</span>
-  <span class="rec-timer">00:00</span>
-  <button class="rec-stop" title="Stop recording (⌘⇧L)">
-    <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
-    Stop
-  </button>
-`;
+})();
 
-const STYLES = `
-  :host { all: initial; }
-
-  .annotation-layer {
-    position: fixed;
-    inset: 0;
-    pointer-events: auto;
-    cursor: crosshair;
-  }
-  canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: auto;
-  }
-
-  .annotation-toolbar {
-    position: fixed;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(14, 15, 19, 0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    color: white;
-    border-radius: 14px;
-    padding: 6px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
-    pointer-events: auto;
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
-    font-size: 13px;
-    user-select: none;
-  }
-  .tb-btn {
-    width: 34px; height: 34px;
-    display: grid; place-items: center;
-    border-radius: 9px;
-    cursor: pointer;
-    color: rgba(255,255,255,0.7);
-    transition: all 120ms ease;
-    background: transparent;
-    border: none;
-  }
-  .tb-btn:hover { color: white; background: rgba(255,255,255,0.08); }
-  .tb-btn.active { color: white; background: rgba(255, 78, 44, 0.85); }
-  .tb-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-  .divider { width: 1px; height: 22px; background: rgba(255,255,255,0.12); margin: 0 4px; display: inline-block; }
-  .swatch {
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    margin: 6px 3px;
-    cursor: pointer;
-    transition: transform 120ms ease;
-    border: 2px solid transparent;
-    padding: 0;
-  }
-  .swatch:hover { transform: scale(1.15); }
-  .swatch.active { border-color: white; transform: scale(1.1); }
-  .badge {
-    padding: 0 10px;
-    font-weight: 500;
-    letter-spacing: -0.005em;
-    color: rgba(255,255,255,0.85);
-    display: inline-flex;
-    align-items: center;
-  }
-  .badge .dot {
-    display: inline-block;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: #ff4e2c;
-    margin-right: 6px;
-    animation: kaboom-pulse 1.5s ease-in-out infinite;
-  }
-  .tb-done {
-    border: none;
-    background: white;
-    color: #0e0f13;
-    font: inherit;
-    font-weight: 600;
-    font-size: 12px;
-    padding: 7px 14px;
-    border-radius: 9px;
-    margin: 0 4px 0 0;
-    cursor: pointer;
-    transition: opacity 120ms ease;
-  }
-  .tb-done:hover { opacity: 0.85; }
-
-  .rec-indicator {
-    position: fixed;
-    left: 20px;
-    bottom: 20px;
-    pointer-events: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 9px 9px 16px;
-    background: rgba(14, 15, 19, 0.94);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    color: white;
-    border-radius: 999px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.08);
-    font-family: 'Inter', -apple-system, system-ui, sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    user-select: none;
-    animation: kaboom-fade-in 200ms ease;
-  }
-  .rec-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: #ff4e2c;
-    box-shadow: 0 0 0 0 rgba(255, 78, 44, 0.6);
-    animation: kaboom-rec-pulse 1.4s ease-in-out infinite;
-  }
-  .rec-label {
-    color: rgba(255, 255, 255, 0.9);
-    letter-spacing: -0.005em;
-  }
-  .rec-timer {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.65);
-    font-variant-numeric: tabular-nums;
-    padding-right: 6px;
-    border-right: 1px solid rgba(255, 255, 255, 0.12);
-    margin-right: 0;
-  }
-  .rec-stop {
-    border: none;
-    background: rgba(255, 78, 44, 0.95);
-    color: white;
-    font: inherit;
-    font-weight: 600;
-    font-size: 12px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    transition: background 120ms ease;
-  }
-  .rec-stop:hover { background: #c93d20; }
-
-  @keyframes kaboom-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-  @keyframes kaboom-rec-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 78, 44, 0.6); }
-    50% { box-shadow: 0 0 0 6px rgba(255, 78, 44, 0); }
-  }
-  @keyframes kaboom-fade-in {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-`;
 
 export {};
