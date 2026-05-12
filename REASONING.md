@@ -20,17 +20,19 @@ Nothing leaves your machine. No signup. No cloud upload. No waiting. The file is
 
 ## Why I built it this way
 
-The brief asks for "a Loom-like extension with better UX" in two days. "Better UX" is open-ended, so I had to pick a direction.
+The brief asks for "a Loom-like extension with better UX" in two days. Loom already has trim, transcripts, drawing, comments, team libraries, sharing pages, analytics, a paid tier. I can't beat them on feature count in two days, and trying to do that would have produced a worse version of every one of those features.
 
-I picked the post-recording workflow. Most screen recorders are weak at the same thing: once you hit stop, you either live with the take or re-record. Trim and on-screen annotation, when they exist, are usually paywalled. That seemed like the highest-leverage place to spend two days.
+So I went the other way: smaller, cleaner, local-only, no signup. The whole thing is one Chrome extension you load in 30 seconds. The popup has nine controls. The preview tab has the player, a slider, and a transcript. There is no account, no sharing page, no paid plan, no upsell. Recordings live on your machine until you decide to do something with them.
 
-So I built three features that all go after that gap:
+The features I did ship are the ones I'd reach for first in a recorder:
 
-1. **Trim before sharing.** Two drag handles on the timeline. Hit Apply. The shorter file replaces the original. No upload wait. No paid plan.
-2. **Live transcript.** Uses Chrome's built-in speech-to-text API. Runs in your browser, free, no API key. Click any line and the video jumps to that moment.
-3. **Draw on screen while recording.** An overlay with pen, highlighter, arrow, eraser, and six colors. The strokes are captured in the video because they are part of what your screen looks like.
+1. **Trim before sharing.** Drag two handles on the timeline. Hit Apply. The file gets shorter.
+2. **Live transcript.** Chrome's built-in speech-to-text. Click any line and the video jumps to that moment.
+3. **Draw on screen while recording.** Pen, highlighter, arrow, eraser, six colors. The strokes are captured in the video because they are part of what's on screen.
 
-In one sentence: a recorder where the take you keep is the one you would have re-recorded otherwise.
+Loom does all three of these. The "better UX" I'm betting on isn't a feature they don't have. It's that I don't have all the things they layer on top: a web app, a sign-up flow, a team product, a sharing graph, a billing tier. Less to learn, less to break, less to trust.
+
+In one sentence: a clean local-first screen recorder. Fewer features on purpose.
 
 ---
 
@@ -108,4 +110,4 @@ Net: AI saved me about a day of typing. I spent that day on the trim slider, the
 
 ## One line if you ask me what's special about it
 
-Record your screen, trim it, share it, without leaving the browser.
+A clean local-first screen recorder. Fewer features than Loom, on purpose.
