@@ -20,13 +20,11 @@ Nothing leaves your machine. No signup. No cloud upload. No waiting. The file is
 
 ## Why I built it this way
 
-I record a lot of short clips at work to explain things. Every time, the slowest part of the job is what happens after I hit stop.
+The brief asks for "a Loom-like extension with better UX" in two days. "Better UX" is open-ended, so I had to pick a direction.
 
-- I fumbled a word at 0:42, so I re-record the whole thing.
-- The first three seconds are dead air, so I either ship it ugly or trim it in another tool.
-- Mid-recording I realized I should have circled a button, so I re-record again.
+I picked the post-recording workflow. Most screen recorders are weak at the same thing: once you hit stop, you either live with the take or re-record. Trim and on-screen annotation, when they exist, are usually paywalled. That seemed like the highest-leverage place to spend two days.
 
-Most screen recorders either don't let you fix any of that, or they put the fix behind a paid plan. So I built three things that go after that pain:
+So I built three features that all go after that gap:
 
 1. **Trim before sharing.** Two drag handles on the timeline. Hit Apply. The shorter file replaces the original. No upload wait. No paid plan.
 2. **Live transcript.** Uses Chrome's built-in speech-to-text API. Runs in your browser, free, no API key. Click any line and the video jumps to that moment.
@@ -74,8 +72,6 @@ These were bugs I did not see coming. The docs don't warn you about them, and AI
 ---
 
 ## How I used AI
-
-Honest list:
 
 - **Boilerplate.** Vite config, manifest, Tailwind setup. AI drafted these. I fixed mistakes in the output paths and the resource list. Saved a few hours.
 - **Trim function.** AI suggested using a byte-slicing approach that doesn't work for browser-recorded video. I switched to a canvas replay approach myself.
