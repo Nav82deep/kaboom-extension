@@ -18,27 +18,25 @@ Nothing leaves your machine. There's no signup, no cloud upload, no "wait for it
 
 ## Why I built it this way
 
-Loom is fine to use. The friction isn't in starting a recording. It's in everything that happens after you stop.
+I record a lot of short clips to explain things, and every time, the slowest part is what happens after I hit stop. I fumbled a word at 0:42, so I re-record. The first three seconds are dead air, so I either ship it ugly or trim it in another tool. Mid-explanation I realised I should have circled a specific button, so I re-record again.
 
-You fumbled a word. The first three seconds are dead air. You wanted to circle a button mid-explanation. So you either re-record (annoying) or pay for Loom Pro to get trim and annotation tools (expensive).
+The existing tools either don't let you fix any of that, or they hide trim and annotation behind a paid plan. So I spent the sprint on three things that go after that pain directly:
 
-I focused the whole sprint on fixing that. The three differentiators are:
+1. **Trim before sharing** — two drag handles on the timeline, hit Apply, done. No upload wait, no paid tier.
+2. **Live transcript** — runs in the browser via Chrome's Web Speech API. Free, no API key. Click any line and the video seeks there.
+3. **Draw on screen during recording** — overlay you can summon with Ctrl+Shift+K, with pen / highlight / arrow / clear and six colors. The strokes end up in the recorded video automatically because they're part of what's on screen.
 
-1. **Trim before sharing** — two drag handles on the timeline, hit Apply, done.
-2. **Live transcript** — runs in the browser via the Web Speech API, free, with clickable timestamps. Click any line and the video jumps there.
-3. **Draw on screen** — overlay that works mid-recording. The strokes are captured automatically because they're part of what your screen looks like.
-
-The accepted submission I was given as reference (Capital Capture) cut the *pre-recording* friction: no login, instant preview after stop. That's good, and I didn't try to do the same thing again. I picked the other half of the problem.
+The pitch in one sentence: a recorder where the take you keep is the one you would have re-recorded otherwise.
 
 ---
 
 ## What I didn't build, and why
 
-- **Login system.** Users hate signups. Adds infrastructure.
-- **Cloud upload / public share links.** Would need a server I'd have to deploy. Out of scope for a 2-day single-zip deliverable. Can add later behind a button.
+- **Accounts / login.** Adds infrastructure and friction for users. Privacy-first is a feature.
+- **Cloud upload / public share URLs.** Would need a server to deploy. Out of scope for a 2-day single-zip deliverable. Could be added later behind a button.
 - **Video compression.** Helps long recordings, adds 250KB of WASM, hurts startup. Not worth it for clips under 5 minutes.
-- **Team workspaces, comments, view counts.** Retention features. Irrelevant before the core loop is good.
-- **Pause/resume.** Easy to add but the trim feature covers most reasons people pause.
+- **Team workspaces, comments, view counts.** Retention features. Only worth it after the core loop is good.
+- **Pause/resume.** MediaRecorder supports it but the trim feature covers most reasons people pause.
 
 Rule I followed: if it doesn't improve the recording you just made, cut it.
 
@@ -56,12 +54,12 @@ No backend. Plain TypeScript and Vite. There are five separate pieces inside the
 | Content script | Injects two things into the active tab: the floating red "Recording" pill, and the drawing overlay. | `src/content/` |
 | Preview page | The post-recording UI. Player, trim, transcript, library. Preact + Tailwind. | `src/preview/` |
 
-Storage is IndexedDB via Dexie. Each recording is around 5-10MB per minute.
+Storage is IndexedDB via Dexie. Each recording is around 5-10 MB per minute.
 
 The trickiest things I had to figure out were specific to Chrome's MV3 model:
 
-- Service workers get killed after about 30 seconds of inactivity, so I had to mirror recording state to `chrome.storage.session` so the popup doesn't show "Start recording" mid-recording after the worker restarts.
-- `requestAnimationFrame` doesn't fire in hidden offscreen documents, which meant my first version of the canvas-composite produced 0-byte recordings. Switched to `setInterval`.
+- Service workers get killed after about 30 seconds of inactivity, so I had to mirror recording state to `chrome.storage.session` to keep the popup from showing "Start recording" mid-recording after the worker restarts.
+- `requestAnimationFrame` doesn't fire in hidden offscreen documents, which meant my first version of the canvas composite produced 0-byte recordings. Switched to `setInterval`.
 - Content scripts get injected multiple times during a session (on every tab switch). The first version had top-level `const` declarations that crashed on the second injection. Wrapped everything in a guarded IIFE.
 - The mic/camera permission prompt was invisible to the user when I called `getUserMedia` from the offscreen doc. Moved the request to the popup where Chrome's dialog actually anchors to the extension icon. Once granted there, the offscreen doc inherits the permission.
 
@@ -91,7 +89,7 @@ Net: AI saved roughly a day of typing. That day went into the trim UI, the permi
 | One repo, preview inside the extension | One zip ships everything. No env vars for the reviewer to configure. | No cross-device sync. No public share URLs. |
 | Preact in preview, vanilla TS everywhere else | Popup boots in 5ms. Bundle is 86KB. | Two idioms in the same codebase. |
 | Canvas-replay trim | Works on any WebM the recorder produces. No WASM. | Trim takes about 1x real-time. |
-| Web Speech API for transcripts | Free, runs in-browser, no API key | Not Whisper-accurate. Chrome-only. |
+| Web Speech API for transcripts | Free, runs in-browser, no API key. | Not Whisper-accurate. Chrome-only. |
 | IndexedDB local-only | Private, offline-friendly, instant playback. | No sync, no sharing across devices. |
 | Shadow DOM annotation overlay | Host page CSS can't break it. | 1KB of inline CSS per active tab. |
 | Permission preflight from the popup | Permission prompt actually appears anchored to the extension icon. | Extra round-trip before the screen picker. |
