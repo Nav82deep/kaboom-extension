@@ -61,27 +61,34 @@ async function preflight(kind: 'cam' | 'mic'): Promise<PreflightResult> {
   }
 }
 
-function reasonLabel(kind: 'cam' | 'mic', reason: string): { title: string; body: string } {
+function reasonLabel(kind: 'cam' | 'mic', reason: string): { title: string; body: string; steps?: string[] } {
   const device = kind === 'cam' ? 'camera' : 'microphone';
+  const Device = cap(device);
+  const sysPath = kind === 'cam' ? 'Privacy & Security → Camera' : 'Privacy & Security → Microphone';
   switch (reason) {
     case 'permission_denied':
       return {
-        title: `${cap(device)} access blocked`,
-        body: `Chrome won't let Kaboom use your ${device}. Click 'Open settings' to unblock the extension, then try again.`,
+        title: `${Device} access blocked`,
+        body: `Chrome did not let Kaboom use your ${device}. Usually one of these:`,
+        steps: [
+          `<strong>macOS:</strong> System Settings → ${sysPath} → make sure <strong>Google Chrome</strong> is toggled on.`,
+          `<strong>Chrome:</strong> click <em>Open settings</em> below. If you see <code>chrome-extension://</code> Kaboom in the Blocked list, remove it. If it isn't listed yet, the OS-level permission above is what's missing.`,
+          `Then come back and click <em>Start recording</em> again.`,
+        ],
       };
     case 'no_device':
       return {
         title: `No ${device} found`,
-        body: `No ${device} is connected to this machine.`,
+        body: `Kaboom couldn't find any ${device} connected to this machine.`,
       };
     case 'device_in_use':
       return {
-        title: `${cap(device)} is busy`,
-        body: `Another app is using your ${device}. Close it (e.g. Zoom, FaceTime) and try again.`,
+        title: `${Device} is busy`,
+        body: `Another app is using your ${device}. Close it (Zoom, FaceTime, Meet, etc.) and try again.`,
       };
     default:
       return {
-        title: `${cap(device)} unavailable`,
+        title: `${Device} unavailable`,
         body: reason,
       };
   }
@@ -121,7 +128,31 @@ function fmt(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
 }
 
+let lastRenderKey = '';
+
+function renderKey(): string {
+  return JSON.stringify({
+    rec: state.recording,
+    ann: state.annotation,
+    elapsed: state.recording && state.startedAt ? Math.floor((Date.now() - state.startedAt) / 1000) : 0,
+    draw: state.drawAvailable,
+    perm: state.permError,
+    starting: state.starting,
+    src: state.source,
+    cam: state.withCam,
+    mic: state.withMic,
+    sys: state.withSystemAudio,
+  });
+}
+
 function render() {
+  const key = renderKey();
+  if (key === lastRenderKey) return;
+  lastRenderKey = key;
+  renderInternal();
+}
+
+function renderInternal() {
   const root = document.getElementById('root');
   if (!root) return;
 
@@ -238,8 +269,11 @@ function render() {
 }
 
 function renderPermError(err: { kind: 'cam' | 'mic'; reason: string }): string {
-  const { title, body } = reasonLabel(err.kind, err.reason);
+  const { title, body, steps } = reasonLabel(err.kind, err.reason);
   const isPerm = err.reason === 'permission_denied';
+  const stepsHtml = steps
+    ? `<ol class="perm-steps">${steps.map((s) => `<li>${s}</li>`).join('')}</ol>`
+    : '';
   return `
     <div class="perm-error">
       <div class="perm-error-head">
@@ -247,8 +281,9 @@ function renderPermError(err: { kind: 'cam' | 'mic'; reason: string }): string {
         <strong>${title}</strong>
       </div>
       <p>${body}</p>
+      ${stepsHtml}
       <div class="perm-error-actions">
-        ${isPerm ? '<button class="btn-perm primary-action" id="perm-open">Open settings</button>' : ''}
+        ${isPerm ? '<button class="btn-perm primary-action" id="perm-open">Open Chrome settings</button>' : ''}
         <button class="btn-perm" id="perm-skip">Record without ${err.kind === 'cam' ? 'webcam' : 'mic'}</button>
         <button class="btn-perm ghost-action" id="perm-dismiss">Dismiss</button>
       </div>
