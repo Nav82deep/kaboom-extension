@@ -15,6 +15,8 @@ interface State {
   startedAt: number | null;
   drawAvailable: boolean;
   activeTabUrl: string;
+  permError: { kind: 'cam' | 'mic'; reason: string } | null;
+  starting: boolean;
 }
 
 const state: State = {
@@ -27,7 +29,72 @@ const state: State = {
   startedAt: null,
   drawAvailable: true,
   activeTabUrl: '',
+  permError: null,
+  starting: false,
 };
+
+interface PreflightResult {
+  ok: boolean;
+  reason?: string;
+}
+
+async function preflight(kind: 'cam' | 'mic'): Promise<PreflightResult> {
+  try {
+    const constraints: MediaStreamConstraints =
+      kind === 'cam'
+        ? { video: { width: 320, height: 240 }, audio: false }
+        : { audio: true, video: false };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    stream.getTracks().forEach((t) => t.stop());
+    return { ok: true };
+  } catch (e) {
+    const err = e as DOMException;
+    const reason =
+      err.name === 'NotAllowedError'
+        ? 'permission_denied'
+        : err.name === 'NotFoundError'
+          ? 'no_device'
+          : err.name === 'NotReadableError'
+            ? 'device_in_use'
+            : err.message || 'unknown';
+    return { ok: false, reason };
+  }
+}
+
+function reasonLabel(kind: 'cam' | 'mic', reason: string): { title: string; body: string } {
+  const device = kind === 'cam' ? 'camera' : 'microphone';
+  switch (reason) {
+    case 'permission_denied':
+      return {
+        title: `${cap(device)} access blocked`,
+        body: `Chrome won't let Kaboom use your ${device}. Click 'Open settings' to unblock the extension, then try again.`,
+      };
+    case 'no_device':
+      return {
+        title: `No ${device} found`,
+        body: `No ${device} is connected to this machine.`,
+      };
+    case 'device_in_use':
+      return {
+        title: `${cap(device)} is busy`,
+        body: `Another app is using your ${device}. Close it (e.g. Zoom, FaceTime) and try again.`,
+      };
+    default:
+      return {
+        title: `${cap(device)} unavailable`,
+        body: reason,
+      };
+  }
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function openPermissionSettings(kind: 'cam' | 'mic') {
+  const url = kind === 'cam' ? 'chrome://settings/content/camera' : 'chrome://settings/content/microphone';
+  chrome.tabs.create({ url });
+}
 
 function isInjectableUrl(url: string): boolean {
   if (!url) return false;
@@ -103,12 +170,18 @@ function render() {
       </div>
     </div>
 
-    <button class="primary ${isRec ? 'recording' : ''}" id="go">
+    <button class="primary ${isRec ? 'recording' : ''}" id="go" ${state.starting ? 'disabled' : ''}>
       <span class="primary-label">
-        ${isRec ? '<span class="dot"></span> Stop recording' : 'Start recording'}
+        ${state.starting
+          ? '<span class="spinner"></span> Requesting permission…'
+          : isRec
+            ? '<span class="dot"></span> Stop recording'
+            : 'Start recording'}
       </span>
-      <span class="kbd kbd-dark">${KBD_RECORD}</span>
+      ${state.starting ? '' : `<span class="kbd kbd-dark">${KBD_RECORD}</span>`}
     </button>
+
+    ${state.permError ? renderPermError(state.permError) : ''}
 
     <div class="footer">
       <button class="ghost" id="lib">
@@ -148,22 +221,79 @@ function render() {
     await send({ type: 'POPUP_TOGGLE_ANNOTATION' } satisfies Message);
     window.close();
   });
+  document.getElementById('perm-open')?.addEventListener('click', () => {
+    if (state.permError) openPermissionSettings(state.permError.kind);
+  });
+  document.getElementById('perm-skip')?.addEventListener('click', async () => {
+    if (!state.permError) return;
+    if (state.permError.kind === 'cam') state.withCam = false;
+    if (state.permError.kind === 'mic') state.withMic = false;
+    state.permError = null;
+    render();
+  });
+  document.getElementById('perm-dismiss')?.addEventListener('click', () => {
+    state.permError = null;
+    render();
+  });
+}
+
+function renderPermError(err: { kind: 'cam' | 'mic'; reason: string }): string {
+  const { title, body } = reasonLabel(err.kind, err.reason);
+  const isPerm = err.reason === 'permission_denied';
+  return `
+    <div class="perm-error">
+      <div class="perm-error-head">
+        <span class="perm-error-icon">⚠</span>
+        <strong>${title}</strong>
+      </div>
+      <p>${body}</p>
+      <div class="perm-error-actions">
+        ${isPerm ? '<button class="btn-perm primary-action" id="perm-open">Open settings</button>' : ''}
+        <button class="btn-perm" id="perm-skip">Record without ${err.kind === 'cam' ? 'webcam' : 'mic'}</button>
+        <button class="btn-perm ghost-action" id="perm-dismiss">Dismiss</button>
+      </div>
+    </div>
+  `;
 }
 
 async function onPrimary() {
   if (state.recording) {
     await send({ type: 'POPUP_STOP' } satisfies Message);
     window.close();
-  } else {
-    const config: RecordingConfig = {
-      source: state.source,
-      withCam: state.withCam,
-      withMic: state.withMic,
-      withSystemAudio: state.withSystemAudio,
-    };
-    await send({ type: 'POPUP_START', config } satisfies Message);
-    window.close();
+    return;
   }
+
+  state.permError = null;
+  state.starting = true;
+  render();
+
+  if (state.withCam) {
+    const r = await preflight('cam');
+    if (!r.ok) {
+      state.permError = { kind: 'cam', reason: r.reason ?? 'unknown' };
+      state.starting = false;
+      render();
+      return;
+    }
+  }
+  if (state.withMic) {
+    const r = await preflight('mic');
+    if (!r.ok) {
+      state.permError = { kind: 'mic', reason: r.reason ?? 'unknown' };
+      state.starting = false;
+      render();
+      return;
+    }
+  }
+
+  const config: RecordingConfig = {
+    source: state.source,
+    withCam: state.withCam,
+    withMic: state.withMic,
+    withSystemAudio: state.withSystemAudio,
+  };
+  await send({ type: 'POPUP_START', config } satisfies Message);
+  window.close();
 }
 
 function openLibrary() {
