@@ -10,99 +10,103 @@
 
 A Chrome extension that records your screen.
 
-You click record, pick a screen or window, talk through it, hit stop. The preview tab opens straight away with the video. On the right you get a live transcript with clickable timestamps. Under the player there's a slider with two handles — drag them to trim out the dead air, hit Apply, file gets shorter. During the recording you can press Ctrl+Shift+K to bring up a drawing overlay (pen, highlighter, arrow, colors) and the strokes end up in the final video.
+You click record. You pick a screen or a window. You talk through it. You hit stop. A preview page opens right away with the video on it. On the right side, you see a live transcript with clickable timestamps. Below the video, there is a slider with two handles. You drag the handles to cut out the dead air at the start or end. You hit Apply. The file gets shorter.
 
-Nothing leaves your machine. There's no signup, no cloud upload, no "wait for it to process". The Blob lives in IndexedDB. You download it when you want to.
+While recording, you can press Ctrl+Shift+K to bring up a drawing pen. The strokes end up in the final video.
+
+Nothing leaves your machine. No signup. No cloud upload. No waiting. The file is saved in the browser. You can download it whenever you want.
 
 ---
 
 ## Why I built it this way
 
-I record a lot of short clips to explain things, and every time, the slowest part is what happens after I hit stop. I fumbled a word at 0:42, so I re-record. The first three seconds are dead air, so I either ship it ugly or trim it in another tool. Mid-explanation I realised I should have circled a specific button, so I re-record again.
+I record a lot of short clips at work to explain things. Every time, the slowest part of the job is what happens after I hit stop.
 
-The existing tools either don't let you fix any of that, or they hide trim and annotation behind a paid plan. So I spent the sprint on three things that go after that pain directly:
+- I fumbled a word at 0:42, so I re-record the whole thing.
+- The first three seconds are dead air, so I either ship it ugly or trim it in another tool.
+- Mid-recording I realized I should have circled a button, so I re-record again.
 
-1. **Trim before sharing** — two drag handles on the timeline, hit Apply, done. No upload wait, no paid tier.
-2. **Live transcript** — runs in the browser via Chrome's Web Speech API. Free, no API key. Click any line and the video seeks there.
-3. **Draw on screen during recording** — overlay you can summon with Ctrl+Shift+K, with pen / highlight / arrow / clear and six colors. The strokes end up in the recorded video automatically because they're part of what's on screen.
+Most screen recorders either don't let you fix any of that, or they put the fix behind a paid plan. So I built three things that go after that pain:
 
-The pitch in one sentence: a recorder where the take you keep is the one you would have re-recorded otherwise.
+1. **Trim before sharing.** Two drag handles on the timeline. Hit Apply. The shorter file replaces the original. No upload wait. No paid plan.
+2. **Live transcript.** Uses Chrome's built-in speech-to-text API. Runs in your browser, free, no API key. Click any line and the video jumps to that moment.
+3. **Draw on screen while recording.** An overlay with pen, highlighter, arrow, eraser, and six colors. The strokes are captured in the video because they are part of what your screen looks like.
+
+In one sentence: a recorder where the take you keep is the one you would have re-recorded otherwise.
 
 ---
 
 ## What I didn't build, and why
 
-- **Accounts / login.** Adds infrastructure and friction for users. Privacy-first is a feature.
-- **Cloud upload / public share URLs.** Would need a server to deploy. Out of scope for a 2-day single-zip deliverable. Could be added later behind a button.
-- **Video compression.** Helps long recordings, adds 250KB of WASM, hurts startup. Not worth it for clips under 5 minutes.
-- **Team workspaces, comments, view counts.** Retention features. Only worth it after the core loop is good.
-- **Pause/resume.** MediaRecorder supports it but the trim feature covers most reasons people pause.
+- **Accounts and login.** Adds setup and friction. Privacy-first is a feature.
+- **Cloud upload and public share URLs.** Needs a server to deploy. Can be added later as a button.
+- **Video compression.** Helps long recordings, but adds 250 KB of code and slows things down. Not worth it for clips under 5 minutes.
+- **Team workspaces, comments, view counts.** Nice for paid products. Only worth it once the core flow is solid.
+- **Pause and resume.** MediaRecorder supports it. I just ran out of time.
 
-Rule I followed: if it doesn't improve the recording you just made, cut it.
+Rule I followed: if it doesn't make the recording you just made better, cut it.
 
 ---
 
 ## How it's actually built
 
-No backend. Plain TypeScript and Vite. There are five separate pieces inside the extension and they talk to each other through Chrome's messaging API.
+No backend. Plain TypeScript, built with Vite. Recordings are saved in the browser's local database (IndexedDB), with a small helper called Dexie.
 
-| Piece | What it does | File |
-| --- | --- | --- |
-| Popup | The little UI when you click the toolbar icon. Picks source, asks for permissions, kicks off the recording. | `src/popup/` |
-| Service worker | The orchestrator. Receives messages, tracks state, opens the preview tab when recording ends. | `src/background/` |
-| Offscreen document | Does the actual recording. Calls getDisplayMedia, getUserMedia, runs MediaRecorder. Hidden DOM page. | `src/offscreen/` |
-| Content script | Injects two things into the active tab: the floating red "Recording" pill, and the drawing overlay. | `src/content/` |
-| Preview page | The post-recording UI. Player, trim, transcript, library. Preact + Tailwind. | `src/preview/` |
+There are five separate pieces inside the extension. They talk to each other through Chrome's built-in messaging.
 
-Storage is IndexedDB via Dexie. Each recording is around 5-10 MB per minute.
+1. **Popup** (`src/popup/`). The small box that appears when you click the toolbar icon. It picks the source, asks for permissions, and starts the recording.
+2. **Service worker** (`src/background/`). The brain. It listens for messages from the other pieces, tracks state, and opens the preview tab when recording ends.
+3. **Offscreen document** (`src/offscreen/`). A hidden page that does the actual recording. It calls Chrome's screen-capture API, the camera and mic APIs, and the MediaRecorder API.
+4. **Content script** (`src/content/`). Runs inside the active web page. Shows the floating red "Recording" pill at the bottom-left, and runs the drawing overlay.
+5. **Preview page** (`src/preview/`). What you see after you hit stop. Player, trim slider, transcript, and a library of past recordings. Built with Preact and Tailwind.
 
-The trickiest things I had to figure out were specific to Chrome's MV3 model:
+Each recording is roughly 5 to 10 MB per minute.
 
-- Service workers get killed after about 30 seconds of inactivity, so I had to mirror recording state to `chrome.storage.session` to keep the popup from showing "Start recording" mid-recording after the worker restarts.
-- `requestAnimationFrame` doesn't fire in hidden offscreen documents, which meant my first version of the canvas composite produced 0-byte recordings. Switched to `setInterval`.
-- Content scripts get injected multiple times during a session (on every tab switch). The first version had top-level `const` declarations that crashed on the second injection. Wrapped everything in a guarded IIFE.
-- The mic/camera permission prompt was invisible to the user when I called `getUserMedia` from the offscreen doc. Moved the request to the popup where Chrome's dialog actually anchors to the extension icon. Once granted there, the offscreen doc inherits the permission.
+The trickiest bugs I hit were Chrome-specific:
 
-These weren't bugs I expected. They're the kind of thing the docs don't tell you and AI tools confidently get wrong.
+1. Chrome shuts down idle background scripts after about 30 seconds. My first version forgot the state when that happened, so the popup showed "Start recording" in the middle of an active session. I now save the state to `chrome.storage.session` so it survives shutdowns.
+2. The function `requestAnimationFrame` doesn't run in hidden pages, which broke my first version of the recording pipeline. Files came out as 0 bytes. I switched to `setInterval`, and to using the screen track directly when no webcam bubble is needed.
+3. Chrome injects the content script many times in one session. The first version had top-level variables that crashed on the second injection. I wrapped the whole file in a guard so it only runs once per page.
+4. The mic and camera permission prompt was invisible when called from a hidden page. So I moved the ask to the popup, where Chrome shows the prompt right next to the extension icon. Once granted there, the hidden page can use it too.
+
+These were bugs I did not see coming. The docs don't warn you about them, and AI tools confidently get them wrong.
 
 ---
 
 ## How I used AI
 
-Honestly:
+Honest list:
 
-- **Boilerplate** (Vite config, manifest, Tailwind setup, the initial scaffold): AI drafted, I fixed mistakes in the entry-name to output-path mapping and the web_accessible_resources array. Saved a few hours.
-- **Trim function**: AI suggested MediaSource byte slicing, which doesn't work on browser-recorded WebM. I switched to a canvas-replay approach myself.
-- **Cam bubble composite**: AI scaffolded, the aspect-ratio math was wrong (it stretched portrait webcams), I rewrote it.
-- **UI components in the preview**: AI scaffolded transcript panel, library cards, and share bar. I did the trim Timeline component by hand because that interaction is the whole product.
-- **Drawing overlay**: I owned this end to end. Shadow DOM, pointer events, arrow trigonometry.
-- **MV3 quirks** (the ones above): no AI help. Read Chromium docs and source.
+- **Boilerplate.** Vite config, manifest, Tailwind setup. AI drafted these. I fixed mistakes in the output paths and the resource list. Saved a few hours.
+- **Trim function.** AI suggested using a byte-slicing approach that doesn't work for browser-recorded video. I switched to a canvas replay approach myself.
+- **Cam bubble.** AI wrote the first draft. The math was wrong (it stretched portrait webcams). I rewrote it.
+- **Preview UI bits.** AI did the transcript panel, library cards, and share bar. I did the trim slider by hand because that interaction is the whole point.
+- **Drawing overlay.** I wrote this from scratch. Shadow DOM, pointer events, arrow math.
+- **Chrome-specific bugs.** No AI help. Read Chrome's docs and source code.
 
-Net: AI saved roughly a day of typing. That day went into the trim UI, the permission preflight flow, debugging the MV3 quirks, and writing this doc.
+Net: AI saved me about a day of typing. I spent that day on the trim slider, the permission flow, the bugs above, and this doc.
 
 ---
 
 ## Tradeoffs I'd defend
 
-| What I chose | What I got | What it cost |
-| --- | --- | --- |
-| One repo, preview inside the extension | One zip ships everything. No env vars for the reviewer to configure. | No cross-device sync. No public share URLs. |
-| Preact in preview, vanilla TS everywhere else | Popup boots in 5ms. Bundle is 86KB. | Two idioms in the same codebase. |
-| Canvas-replay trim | Works on any WebM the recorder produces. No WASM. | Trim takes about 1x real-time. |
-| Web Speech API for transcripts | Free, runs in-browser, no API key. | Not Whisper-accurate. Chrome-only. |
-| IndexedDB local-only | Private, offline-friendly, instant playback. | No sync, no sharing across devices. |
-| Shadow DOM annotation overlay | Host page CSS can't break it. | 1KB of inline CSS per active tab. |
-| Permission preflight from the popup | Permission prompt actually appears anchored to the extension icon. | Extra round-trip before the screen picker. |
+- **One repo with the preview page inside the extension.** Ships as one zip. Reviewer needs no setup. The cost: no sync across devices, no public share URLs.
+- **Preact in the preview, plain TypeScript everywhere else.** Popup loads in 5 ms. Full bundle is 86 KB. The cost: two slightly different styles in the same codebase.
+- **Canvas-replay trim.** Works on any video the recorder produces. No extra WASM code. The cost: trim takes about real-time (a one-minute trim takes about a minute).
+- **Web Speech API for the transcript.** Free, runs in the browser, no API key. The cost: not as accurate as Whisper, and works only in Chrome.
+- **IndexedDB only, no cloud.** Private, works offline, instant playback. The cost: no sync.
+- **Shadow DOM for the drawing overlay.** The host page's CSS can't break it. The cost: 1 KB of extra inline CSS per page.
+- **Asking permission from the popup.** The dialog actually shows up where the user can see it. The cost: one more round-trip before the screen picker shows.
 
 ---
 
 ## What I'd build next
 
-1. **Pause/resume** — MediaRecorder supports it, just out of scope.
-2. **Instant trim for long recordings** — switch from canvas-replay to WASM mp4-muxer for files where re-encoding is too slow.
-3. **Optional anonymous share link** — file.io or transfer.sh upload behind a button. Keeps the privacy-by-default story but gives users an out.
-4. **Better transcript** — Whisper.cpp WASM as a higher-quality alternative to Web Speech.
-5. **Auto-detect silence** in the trim view — biggest UX win after the trim feature itself.
+1. **Pause and resume.** MediaRecorder supports it. Just out of time.
+2. **Instant trim for long recordings.** Switch from canvas replay to a WASM video cutter for files that take too long to re-encode.
+3. **Optional anonymous share link.** Upload to a free service like file.io behind a button. Keeps the privacy story but gives users a way to share.
+4. **Better transcript.** Add Whisper running in the browser (WASM) as a higher-quality option.
+5. **Auto-detect silence in the trim view.** Likely the biggest UX win after trim itself.
 
 ---
 
