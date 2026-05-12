@@ -2,7 +2,6 @@
 
 **Take-home for Capital Compute Technologies**
 **Author: Navdeep**
-**Time spent: ~2 days**
 
 ---
 
@@ -42,7 +41,6 @@ In one sentence: a clean local-first screen recorder. Fewer features on purpose.
 - **Cloud upload and public share URLs.** Needs a server to deploy. Can be added later as a button.
 - **Video compression.** Helps long recordings, but adds 250 KB of code and slows things down. Not worth it for clips under 5 minutes.
 - **Team workspaces, comments, view counts.** Nice for paid products. Only worth it once the core flow is solid.
-- **Pause and resume.** MediaRecorder supports it. I just ran out of time.
 
 Rule I followed: if it doesn't make the recording you just made better, cut it.
 
@@ -110,4 +108,4 @@ Net: AI saved me about a day of typing. I spent that day on the trim slider, the
 
 ## One line if you ask me what's special about it
 
-A clean local-first screen recorder. Fewer features than Loom, on purpose.
+Screen recording, trim, transcript, draw-on-screen — in one Chrome extension you never sign up for.
