@@ -1,6 +1,10 @@
 import type { RecordingConfig, RecordingSource, Message } from '../lib/messages';
 import { send } from '../lib/messages';
 
+const IS_MAC = /mac/i.test(navigator.platform);
+const KBD_RECORD = IS_MAC ? '⌘⇧L' : 'Ctrl+Shift+L';
+const KBD_DRAW = IS_MAC ? '⌘⇧K' : 'Ctrl+Shift+K';
+
 interface State {
   source: RecordingSource;
   withCam: boolean;
@@ -103,7 +107,7 @@ function render() {
       <span class="primary-label">
         ${isRec ? '<span class="dot"></span> Stop recording' : 'Start recording'}
       </span>
-      <span class="kbd kbd-dark">⌘⇧L</span>
+      <span class="kbd kbd-dark">${KBD_RECORD}</span>
     </button>
 
     <div class="footer">
@@ -114,7 +118,7 @@ function render() {
       <button class="ghost ${state.drawAvailable ? '' : 'disabled'}" id="draw" ${state.drawAvailable ? '' : 'aria-disabled="true"'} title="${state.drawAvailable ? '' : 'Open a normal webpage to use the annotation overlay'}">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
         ${state.annotation ? 'Stop drawing' : 'Draw on screen'}
-        <span class="kbd">⌘⇧K</span>
+        <span class="kbd">${KBD_DRAW}</span>
       </button>
     </div>
     ${!state.drawAvailable ? '<p class="notice">Drawing works on regular websites — open one in this tab to use the annotation overlay.</p>' : ''}

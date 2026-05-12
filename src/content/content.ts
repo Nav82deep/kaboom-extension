@@ -29,12 +29,14 @@ declare global {
   window.__kaboomOverlayInit = true;
 
   const HOST_ID = '__kaboom_overlay_host__';
+  const IS_MAC = /mac/i.test(navigator.platform);
+  const STOP_KBD = IS_MAC ? '⌘⇧L' : 'Ctrl+Shift+L';
 
   const INDICATOR_HTML = `
   <span class="rec-dot"></span>
   <span class="rec-label">Recording</span>
   <span class="rec-timer">00:00</span>
-  <button class="rec-stop" title="Stop recording (⌘⇧L)">
+  <button class="rec-stop" title="Stop recording (${STOP_KBD})">
     <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
     Stop
   </button>
