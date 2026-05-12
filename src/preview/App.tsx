@@ -166,12 +166,13 @@ function PlayerView({ rec, onUpdate }: PlayerProps) {
   }
 
   const trimmed = trimStart > 0 || Math.abs(trimEnd - duration) > 0.1;
+  const hasTranscript = rec.transcript.length > 0;
 
   return (
-    <div class="min-h-screen px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
+    <div class={`min-h-screen px-6 lg:px-10 py-8 mx-auto ${hasTranscript ? 'max-w-[1400px]' : 'max-w-[1100px]'}`}>
       <Header onLibrary={() => (window.location.href = '?library=1')} />
 
-      <div class="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+      <div class={`mt-6 grid grid-cols-1 ${hasTranscript ? 'lg:grid-cols-[1fr_360px]' : ''} gap-6`}>
         <div class="space-y-4">
           <TitleField value={title} onChange={saveTitle} />
 
@@ -232,13 +233,15 @@ function PlayerView({ rec, onUpdate }: PlayerProps) {
           <ShareBar rec={rec} />
         </div>
 
-        <aside class="space-y-4">
-          <TranscriptPanel
-            cues={rec.transcript}
-            currentTime={currentTime}
-            onSeek={seek}
-          />
-        </aside>
+        {hasTranscript && (
+          <aside class="space-y-4">
+            <TranscriptPanel
+              cues={rec.transcript}
+              currentTime={currentTime}
+              onSeek={seek}
+            />
+          </aside>
+        )}
       </div>
     </div>
   );

@@ -47,19 +47,7 @@ export function TranscriptPanel({ cues, currentTime, onSeek }: Props) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  if (cues.length === 0) {
-    return (
-      <div class="surface p-5">
-        <h3 class="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-500)] mb-2">
-          Transcript
-        </h3>
-        <p class="text-sm text-[var(--ink-400)] leading-relaxed">
-          No transcript captured. Enable the microphone before recording to get
-          a live, searchable transcript with clickable timestamps.
-        </p>
-      </div>
-    );
-  }
+  if (cues.length === 0) return null;
 
   return (
     <div class="surface flex flex-col h-[640px]">
