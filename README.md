@@ -1,8 +1,8 @@
 # Kaboom
 
-A Chrome extension for fast, friction-free screen recording — with **in-browser trim**, a **live transcript**, and a **draw-on-screen** annotation layer that works mid-recording. Built as a take-home for Capital Compute Technologies.
+A Chrome extension for fast, friction-free screen recording. In-browser trim, a live transcript, and a draw-on-screen annotation layer that works mid-recording. Built as a take-home for Capital Compute Technologies.
 
-> Record → trim → ship. No login, no upload spinner, no separate web app to deploy.
+> Record, trim, ship. No login, no upload spinner, no separate web app to deploy.
 
 ---
 
@@ -10,7 +10,7 @@ A Chrome extension for fast, friction-free screen recording — with **in-browse
 
 ```bash
 npm install
-
+npm run build
 ```
 
 Then in Chrome:
@@ -78,12 +78,14 @@ Vite watches the source and rebuilds `dist/` in place. After a change, click **R
 
 ## Permissions & privacy
 
-Kaboom asks for `offscreen`, `storage`, `tabs`, `scripting`, `activeTab`, and `downloads`. The host permission is `<all_urls>`, used only to inject the annotation overlay into the active tab on demand.
+Kaboom asks for `offscreen`, `storage`, `tabs`, `scripting`, `activeTab`, `downloads`, and `notifications`. The host permission is `<all_urls>`, used only to inject the annotation overlay and the floating recording indicator into the active tab.
 
-Everything stays on your machine. There is no upload endpoint, no analytics, no telemetry. The "Copy link" button generates a `chrome-extension://…` URL that only works inside the same browser profile that recorded the video.
+The first time you record with mic or webcam enabled, Chrome will ask for those permissions through the popup. macOS users: make sure Google Chrome itself has camera and microphone access under System Settings → Privacy & Security; without that, Chrome's own prompt never appears.
+
+Everything stays on your machine. No upload endpoint, no analytics, no telemetry. The Copy link button generates a `chrome-extension://…` URL that only works inside the same browser profile that recorded the video.
 
 ---
 
 ## Why "Kaboom"?
 
-It rhymes with Loom and sounds like an explosion. The point is that recording shouldn't feel like a process — it should feel like clicking a button and being done.
+Rhymes with Loom, sounds like an explosion. Recording shouldn't feel like a process, it should feel like clicking a button and being done.
